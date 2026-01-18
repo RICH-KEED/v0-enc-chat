@@ -4,7 +4,7 @@
   "description": "Blockchain service for Cipher encrypted chat",
   "scripts": {
     "dev": "node scripts/start-dev.js",
-    "ganache": "ganache --port 8545 --chain.chainId 1337 --wallet.mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
+    "ganache": "node -r dotenv/config -e \"require('child_process').spawn('npx', ['ganache', '--port', '8545', '--chain.chainId', '1337', '--wallet.mnemonic', process.env.GANACHE_MNEMONIC || 'test test test test test test test test test test test junk'], {stdio: 'inherit', shell: true})\"",
     "compile": "hardhat compile",
     "deploy": "hardhat run scripts/deploy-local.js --network hardhat",
     "deploy:local": "hardhat run scripts/deploy-local.js --network ganache",
