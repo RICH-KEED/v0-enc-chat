@@ -70,7 +70,7 @@ cipher/
 
 ### 1. Frontend Setup
 
-The frontend runs in v0 and requires no installation. It uses the following environment variables:
+The frontend is built with Next.js and requires the following environment variables:
 
 ```env
 NEXT_PUBLIC_SOCKET_URL=http://localhost:3001
@@ -137,7 +137,8 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cipher?retryWrit
 1. Ensure MongoDB Atlas cluster is running
 2. Start the backend server: `cd backend && npm start`
 3. Start the blockchain (if using local Ganache)
-4. Access the frontend at your v0 preview URL
+4. Start the frontend: `npm run dev`
+5. Access the application at http://localhost:3000
 
 ## Default Accounts
 

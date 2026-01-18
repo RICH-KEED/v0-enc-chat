@@ -16,6 +16,10 @@ const blockchainService = require("../blockchain/blockchain.service")
 
 const app = express()
 const server = http.createServer(app)
+
+// Increase max listeners to avoid warning
+server.setMaxListeners(20)
+
 const io = socketIo(server, {
   cors: {
     origin: config.corsOrigin,
@@ -88,6 +92,7 @@ io.on("connection", (socket) => {
 
       await user.save()
       socket.emit("user-registered", { userId: user.userId, username: user.username })
+      io.emit("user-registered", { userId: user.userId, username: user.username })
       Logger.success("User registered:", user.username)
     } catch (error) {
       Logger.error("Registration error:", error.message)
@@ -131,6 +136,7 @@ io.on("connection", (socket) => {
       })
 
       io.emit("user-online", { userId: user.userId, status: "online" })
+      io.emit("user-logged-in", { userId: user.userId, username: user.username })
       Logger.success("User logged in:", user.username)
     } catch (error) {
       Logger.error("Login error:", error.message)
@@ -153,6 +159,29 @@ io.on("connection", (socket) => {
     asyncHandler(async () => {
       const users = await User.find().select("-password")
       socket.emit("all-users", users)
+    }),
+  )
+
+  // Get all users with message stats (admin)
+  socket.on(
+    "get-all-users-with-stats",
+    asyncHandler(async () => {
+      const users = await User.find().select("-password")
+      
+      // Get message count for each user
+      const usersWithStats = await Promise.all(
+        users.map(async (user) => {
+          const messageCount = await Message.countDocuments({
+            $or: [{ from: user.userId }, { to: user.userId }]
+          })
+          return {
+            ...user.toObject(),
+            messageCount
+          }
+        })
+      )
+      
+      socket.emit("all-users-with-stats", usersWithStats)
     }),
   )
 
@@ -189,8 +218,58 @@ io.on("connection", (socket) => {
         Logger.warn("Blockchain storage failed, message saved to DB only")
       }
 
+      // Mark as delivered immediately
+      message.delivered = true
+      await message.save()
+
       io.emit("new-message", message)
-      socket.emit("message-sent", { success: true, messageId: message.id })
+      socket.emit("message-sent", { success: true, messageId: message.id, onBlockchain: message.onBlockchain })
+      io.emit("message-delivered", { messageId: message.id })
+    }),
+  )
+
+  // Mark messages as read
+  socket.on(
+    "mark-as-read",
+    asyncHandler(async (data) => {
+      const result = await Message.updateMany(
+        {
+          from: data.from,
+          to: data.to,
+          read: false,
+        },
+        { read: true }
+      )
+      
+      if (result.modifiedCount > 0) {
+        io.emit("messages-read", { from: data.from, to: data.to })
+        Logger.info(`Marked ${result.modifiedCount} messages as read`)
+      }
+    }),
+  )
+
+  // Get unread count from specific user
+  socket.on(
+    "get-unread-from-user",
+    asyncHandler(async (data) => {
+      const unreadCount = await Message.countDocuments({
+        from: data.from,
+        to: data.to,
+        read: false,
+      })
+      socket.emit("unread-from-user", { from: data.from, count: unreadCount })
+    }),
+  )
+
+  // Get total unread count
+  socket.on(
+    "get-unread-count",
+    asyncHandler(async (data) => {
+      const unreadCount = await Message.countDocuments({
+        to: data.userId,
+        read: false,
+      })
+      socket.emit("unread-count", { count: unreadCount })
     }),
   )
 
@@ -204,6 +283,16 @@ io.on("connection", (socket) => {
           { from: data.user2, to: data.user1 },
         ],
       }).sort({ createdAt: 1 })
+
+      // Mark messages as read
+      await Message.updateMany(
+        {
+          from: data.user2,
+          to: data.user1,
+          read: false,
+        },
+        { read: true }
+      )
 
       socket.emit("conversation-history", messages)
     }),
@@ -276,6 +365,119 @@ io.on("connection", (socket) => {
         onlineUsers,
         totalMessages,
         blockchainMessages,
+      })
+    }),
+  )
+
+  // Get all blockchain logs (admin)
+  socket.on(
+    "get-all-blockchain-logs",
+    asyncHandler(async () => {
+      const messages = await Message.find({
+        onBlockchain: true,
+      })
+        .sort({ createdAt: -1 })
+        .limit(100)
+
+      socket.emit("all-blockchain-logs", messages)
+    }),
+  )
+
+  // Get recent activities (admin)
+  socket.on(
+    "get-recent-activities",
+    asyncHandler(async () => {
+      const recentUsers = await User.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("username createdAt")
+
+      const recentMessages = await Message.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("createdAt")
+
+      const activities = []
+
+      // Add user registrations
+      recentUsers.forEach(user => {
+        activities.push({
+          type: "user",
+          username: user.username,
+          timestamp: user.createdAt
+        })
+      })
+
+      // Add messages
+      recentMessages.forEach(msg => {
+        activities.push({
+          type: "message",
+          timestamp: msg.createdAt
+        })
+      })
+
+      // Sort by timestamp
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+      socket.emit("recent-activities", activities.slice(0, 20))
+    }),
+  )
+
+  // Get analytics data (admin)
+  socket.on(
+    "get-analytics-data",
+    asyncHandler(async () => {
+      const now = new Date()
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+      // Hourly data for last 24 hours
+      const hourlyData = []
+      for (let i = 23; i >= 0; i--) {
+        const hourStart = new Date(now.getTime() - i * 60 * 60 * 1000)
+        const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
+        
+        const messages = await Message.countDocuments({
+          createdAt: { $gte: hourStart, $lt: hourEnd }
+        })
+        
+        const users = await User.countDocuments({
+          lastSeen: { $gte: hourStart, $lt: hourEnd }
+        })
+
+        hourlyData.push({
+          time: hourStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          messages,
+          users
+        })
+      }
+
+      // Daily data for last 7 days
+      const dailyData = []
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      for (let i = 6; i >= 0; i--) {
+        const dayStart = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+        
+        const messages = await Message.countDocuments({
+          createdAt: { $gte: dayStart, $lt: dayEnd }
+        })
+        
+        const users = await User.countDocuments({
+          lastSeen: { $gte: dayStart, $lt: dayEnd }
+        })
+
+        dailyData.push({
+          day: dayNames[dayStart.getDay()],
+          messages,
+          users
+        })
+      }
+
+      socket.emit("analytics-data", {
+        hourly: hourlyData,
+        daily: dailyData
       })
     }),
   )

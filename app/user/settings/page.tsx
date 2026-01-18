@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -12,13 +12,21 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, User, Bell, Shield, Wallet, Save, Upload, Camera } from "lucide-react"
+import { getSocket } from "@/lib/socket"
 
 export default function SettingsPage() {
   const router = useRouter()
+  const socket = getSocket()
+  
+  // Get user data from localStorage
+  const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("cipher-user") || "{}") : {}
+  
   const [profile, setProfile] = useState({
-    name: "John Doe",
+    name: currentUser.username || "User",
+    email: currentUser.email || "",
     status: "Available for chat",
-    userStatus: "online" as "online" | "offline" | "idle" | "dnd",
+    userStatus: (currentUser.status || "online") as "online" | "offline" | "idle" | "dnd",
+    profilePicture: currentUser.profilePicture || "",
   })
 
   const [notifications, setNotifications] = useState({
@@ -27,6 +35,8 @@ export default function SettingsPage() {
     desktopNotifications: false,
   })
 
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+
   const [privacy, setPrivacy] = useState({
     showOnlineStatus: true,
     readReceipts: true,
@@ -34,23 +44,82 @@ export default function SettingsPage() {
   })
 
   const handlePhotoUpload = () => {
-    // Simulate photo upload
     const input = document.createElement("input")
     input.type = "file"
     input.accept = "image/*"
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) {
-        console.log("[v0] Photo uploaded:", file.name)
-        alert("Photo uploaded successfully!")
+        setUploadingPhoto(true)
+        
+        // Convert image to base64 for preview
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const base64String = reader.result as string
+          
+          // Update profile picture in state
+          setProfile({ ...profile, profilePicture: base64String })
+          
+          // Update localStorage
+          const updatedUser = { ...currentUser, profilePicture: base64String }
+          localStorage.setItem("cipher-user", JSON.stringify(updatedUser))
+          
+          setUploadingPhoto(false)
+          
+          // Show success message using a better UI
+          const successDiv = document.createElement("div")
+          successDiv.className = "fixed top-4 right-4 bg-success text-success-foreground px-4 py-3 rounded-lg shadow-lg z-50 animate-in slide-in-from-top"
+          successDiv.textContent = "✓ Profile photo updated!"
+          document.body.appendChild(successDiv)
+          setTimeout(() => successDiv.remove(), 3000)
+        }
+        reader.readAsDataURL(file)
       }
     }
     input.click()
   }
 
+  useEffect(() => {
+    // Load user data on mount
+    if (currentUser.username) {
+      setProfile({
+        name: currentUser.username,
+        email: currentUser.email || "",
+        status: "Available for chat",
+        userStatus: (currentUser.status || "online") as "online" | "offline" | "idle" | "dnd",
+        profilePicture: currentUser.profilePicture || "",
+      })
+    }
+  }, [])
+
   const handleSave = () => {
-    console.log("[v0] Saving profile:", profile)
-    alert("Settings saved successfully!")
+    console.log("[Cipher] Saving profile:", profile)
+    
+    // Update status on backend
+    socket.emit("update-status", {
+      userId: currentUser.userId,
+      status: profile.userStatus,
+    })
+    
+    // Update localStorage
+    const updatedUser = { ...currentUser, status: profile.userStatus }
+    localStorage.setItem("cipher-user", JSON.stringify(updatedUser))
+    
+    // Show success toast
+    const successDiv = document.createElement("div")
+    successDiv.className = "fixed top-4 right-4 bg-success text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in slide-in-from-top"
+    successDiv.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span class="font-medium">Settings saved successfully!</span>
+    `
+    document.body.appendChild(successDiv)
+    setTimeout(() => {
+      successDiv.style.opacity = "0"
+      successDiv.style.transition = "opacity 300ms"
+      setTimeout(() => successDiv.remove(), 300)
+    }, 3000)
   }
 
   return (
@@ -79,23 +148,41 @@ export default function SettingsPage() {
             <div className="flex items-center gap-6">
               <div className="relative">
                 <Avatar className="h-20 w-20">
-                  <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                    {profile.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
+                  {profile.profilePicture ? (
+                    <img 
+                      src={profile.profilePicture} 
+                      alt="Profile" 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+                      {profile.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <button
                   onClick={handlePhotoUpload}
-                  className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-smooth"
+                  disabled={uploadingPhoto}
+                  className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-smooth disabled:opacity-50"
                 >
-                  <Camera className="h-4 w-4" />
+                  {uploadingPhoto ? (
+                    <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
                 </button>
               </div>
-              <Button variant="outline" className="transition-smooth bg-transparent" onClick={handlePhotoUpload}>
+              <Button 
+                variant="outline" 
+                className="transition-smooth bg-transparent" 
+                onClick={handlePhotoUpload}
+                disabled={uploadingPhoto}
+              >
                 <Upload className="h-4 w-4 mr-2" />
-                Change Photo
+                {uploadingPhoto ? "Uploading..." : "Change Photo"}
               </Button>
             </div>
 
@@ -107,7 +194,20 @@ export default function SettingsPage() {
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                   className="bg-background"
+                  disabled
                 />
+                <p className="text-xs text-muted-foreground">Username cannot be changed</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  value={profile.email}
+                  className="bg-background"
+                  disabled
+                />
+                <p className="text-xs text-muted-foreground">Email cannot be changed</p>
               </div>
 
               <div className="space-y-2">
@@ -147,7 +247,7 @@ export default function SettingsPage() {
                     </SelectItem>
                     <SelectItem value="dnd">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-error" />
+                        <div className="h-2 w-2 rounded-full bg-red-500" />
                         <span>Do Not Disturb</span>
                       </div>
                     </SelectItem>
@@ -286,15 +386,23 @@ export default function SettingsPage() {
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-sm font-medium mb-1">Wallet Status</p>
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-success" />
-                <p className="text-sm text-muted-foreground">Connected via MetaMask</p>
+                {currentUser.walletAddress ? (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-success" />
+                    <p className="text-sm text-muted-foreground">Connected</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-muted" />
+                    <p className="text-sm text-muted-foreground">Not connected</p>
+                  </>
+                )}
               </div>
-            </div>
-
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
-              <p className="text-sm font-medium mb-1">Verified Messages</p>
-              <p className="text-2xl font-bold text-primary">1,247</p>
-              <p className="text-xs text-muted-foreground mt-1">Messages verified on blockchain</p>
+              {currentUser.walletAddress && (
+                <p className="text-xs text-muted-foreground mt-2 font-mono">
+                  {currentUser.walletAddress.substring(0, 6)}...{currentUser.walletAddress.substring(38)}
+                </p>
+              )}
             </div>
 
             <Button

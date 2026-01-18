@@ -25,7 +25,7 @@ export default function UserPage() {
     const currentUser = JSON.parse(localStorage.getItem("cipher-user") || "{}")
 
     if (!currentUser.userId || !selectedUserId) {
-      console.error("[v0] Cannot send message: missing user data")
+      console.error("[Cipher] Cannot send message: missing user data")
       return
     }
 
@@ -39,7 +39,7 @@ export default function UserPage() {
       selfDestruct: selfDestructTime || 0,
     })
 
-    console.log("[v0] Message sent:", { message, to: selectedUserId, selfDestructTime })
+    console.log("[Cipher] Message sent:", { message, to: selectedUserId, selfDestructTime })
   }
 
   return (

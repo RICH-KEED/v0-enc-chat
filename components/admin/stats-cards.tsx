@@ -2,51 +2,72 @@
 
 import { Card } from "@/components/ui/card"
 import { Users, MessageSquare, Shield, TrendingUp } from "lucide-react"
-
-const stats = [
-  {
-    label: "Total Users",
-    value: "1,247",
-    change: "+12.3%",
-    trend: "up",
-    icon: Users,
-  },
-  {
-    label: "Messages Today",
-    value: "8,942",
-    change: "+5.7%",
-    trend: "up",
-    icon: MessageSquare,
-  },
-  {
-    label: "Blockchain Records",
-    value: "45,231",
-    change: "+18.2%",
-    trend: "up",
-    icon: Shield,
-  },
-  {
-    label: "Active Now",
-    value: "342",
-    change: "+8.1%",
-    trend: "up",
-    icon: TrendingUp,
-  },
-]
+import { useState, useEffect } from "react"
+import { getSocket } from "@/lib/socket"
 
 export function StatsCards() {
+  const socket = getSocket()
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    onlineUsers: 0,
+    totalMessages: 0,
+    blockchainMessages: 0,
+  })
+
+  useEffect(() => {
+    socket.emit("get-stats")
+
+    socket.on("system-stats", (data: any) => {
+      setStats({
+        totalUsers: data.totalUsers || 0,
+        onlineUsers: data.onlineUsers || 0,
+        totalMessages: data.totalMessages || 0,
+        blockchainMessages: data.blockchainMessages || 0,
+      })
+    })
+
+    // Refresh stats every 10 seconds
+    const interval = setInterval(() => {
+      socket.emit("get-stats")
+    }, 10000)
+
+    return () => {
+      socket.off("system-stats")
+      clearInterval(interval)
+    }
+  }, [socket])
+
+  const statsData = [
+    {
+      label: "Total Users",
+      value: stats.totalUsers.toLocaleString(),
+      icon: Users,
+    },
+    {
+      label: "Total Messages",
+      value: stats.totalMessages.toLocaleString(),
+      icon: MessageSquare,
+    },
+    {
+      label: "Blockchain Records",
+      value: stats.blockchainMessages.toLocaleString(),
+      icon: Shield,
+    },
+    {
+      label: "Active Now",
+      value: stats.onlineUsers.toLocaleString(),
+      icon: TrendingUp,
+    },
+  ]
+
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat) => (
+      {statsData.map((stat) => (
         <Card key={stat.label} className="p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">{stat.label}</p>
               <p className="text-3xl font-bold">{stat.value}</p>
-              <p className="text-sm text-success flex items-center gap-1">
-                <span>{stat.change}</span>
-                <span className="text-muted-foreground">vs last period</span>
-              </p>
             </div>
             <div className="p-3 rounded-lg bg-primary/10">
               <stat.icon className="h-6 w-6 text-primary" />

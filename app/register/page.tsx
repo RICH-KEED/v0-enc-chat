@@ -24,12 +24,12 @@ export default function RegisterPage() {
 
   useEffect(() => {
     socket.on("user-registered", (data) => {
-      console.log("[v0] Registration successful:", data)
+      console.log("[Cipher] Registration successful:", data)
       socket.emit("login-user", { email, password })
     })
 
     socket.on("login-success", (data) => {
-      console.log("[v0] Login after registration successful:", data)
+      console.log("[Cipher] Login after registration successful:", data)
       localStorage.setItem("cipher-token", data.token)
       localStorage.setItem("cipher-user", JSON.stringify(data))
       setIsLoading(false)
@@ -37,19 +37,19 @@ export default function RegisterPage() {
     })
 
     socket.on("registration-error", (error) => {
-      console.error("[v0] Registration error:", error)
+      console.error("[Cipher] Registration error:", error)
       setError(error.message || "Registration failed. Please try again.")
       setIsLoading(false)
     })
 
     socket.on("login-error", (error) => {
-      console.error("[v0] Login error after registration:", error)
+      console.error("[Cipher] Login error after registration:", error)
       setError("Account created but login failed. Please try logging in manually.")
       setIsLoading(false)
     })
 
     socket.on("error", (error) => {
-      console.error("[v0] Socket error:", error)
+      console.error("[Cipher] Socket error:", error)
       setError(error.message || "An error occurred. Please try again.")
       setIsLoading(false)
     })
@@ -79,7 +79,7 @@ export default function RegisterPage() {
     setIsLoading(true)
     setError("")
 
-    console.log("[v0] Attempting registration:", { username, email })
+    console.log("[Cipher] Attempting registration:", { username, email })
     socket.emit("register-user", { username, email, password })
   }
 

@@ -14,15 +14,15 @@ export const getSocket = () => {
     })
 
     socket.on("connect", () => {
-      console.log("[v0] Socket connected:", socket?.id)
+      console.log("[Cipher] Socket connected:", socket?.id)
     })
 
     socket.on("disconnect", () => {
-      console.log("[v0] Socket disconnected")
+      console.log("[Cipher] Socket disconnected")
     })
 
     socket.on("error", (error) => {
-      console.error("[v0] Socket error:", error)
+      console.error("[Cipher] Socket error:", error)
     })
   }
 
