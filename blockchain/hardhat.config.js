@@ -23,6 +23,25 @@ module.exports = {
         ? [process.env.BLOCKCHAIN_PRIVATE_KEY] 
         : [],
     },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+      chainId: 11155111,
+      accounts: process.env.SEPOLIA_PRIVATE_KEY 
+        ? [process.env.SEPOLIA_PRIVATE_KEY] 
+        : [],
+      gasPrice: "auto",
+    },
+    mainnet: {
+      url: process.env.MAINNET_RPC_URL || "https://ethereum-rpc.publicnode.com",
+      chainId: 1,
+      accounts: process.env.MAINNET_PRIVATE_KEY 
+        ? [process.env.MAINNET_PRIVATE_KEY] 
+        : [],
+      gasPrice: "auto",
+    },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY || "",
   },
   paths: {
     sources: "./contracts",

@@ -198,33 +198,38 @@ io.on("connection", (socket) => {
         id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         conversationId,
         selfDestruct: data.selfDestruct || 0,
+        delivered: true,
       })
 
       await message.save()
 
-      // Store on blockchain if available
-      try {
-        const tx = await blockchainService.storeMessage(
-          data.from,
-          data.to,
-          data.encrypted,
-          process.env.BLOCKCHAIN_PRIVATE_KEY,
-        )
+      // Emit message immediately to UI
+      io.emit("new-message", message)
+      socket.emit("message-sent", { success: true, messageId: message.id, onBlockchain: false })
+      io.emit("message-delivered", { messageId: message.id })
+
+      // Store on blockchain in background (don't wait)
+      blockchainService.storeMessage(
+        data.from,
+        data.to,
+        data.encrypted,
+        process.env.BLOCKCHAIN_PRIVATE_KEY,
+      )
+      .then(async (tx) => {
         message.onBlockchain = true
         message.blockchainTxHash = tx.hash
         await message.save()
         Logger.success("Message stored on blockchain:", tx.hash)
-      } catch (error) {
+        
+        // Emit blockchain confirmation
+        io.emit("blockchain-message-stored", {
+          messageId: message.id,
+          txHash: tx.hash,
+        })
+      })
+      .catch((error) => {
         Logger.warn("Blockchain storage failed, message saved to DB only")
-      }
-
-      // Mark as delivered immediately
-      message.delivered = true
-      await message.save()
-
-      io.emit("new-message", message)
-      socket.emit("message-sent", { success: true, messageId: message.id, onBlockchain: message.onBlockchain })
-      io.emit("message-delivered", { messageId: message.id })
+      })
     }),
   )
 
@@ -478,6 +483,38 @@ io.on("connection", (socket) => {
       socket.emit("analytics-data", {
         hourly: hourlyData,
         daily: dailyData
+      })
+    }),
+  )
+
+  // Get daily message stats (for message rate chart)
+  socket.on(
+    "get-daily-message-stats",
+    asyncHandler(async () => {
+      const now = new Date()
+      const dailyData = []
+      
+      // Last 7 days with full date
+      for (let i = 6; i >= 0; i--) {
+        const dayStart = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+        dayStart.setHours(0, 0, 0, 0)
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+        
+        const messages = await Message.countDocuments({
+          createdAt: { $gte: dayStart, $lt: dayEnd }
+        })
+
+        dailyData.push({
+          date: dayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          messages
+        })
+      }
+
+      const totalMessages = await Message.countDocuments()
+
+      socket.emit("daily-message-stats", {
+        daily: dailyData,
+        total: totalMessages
       })
     }),
   )

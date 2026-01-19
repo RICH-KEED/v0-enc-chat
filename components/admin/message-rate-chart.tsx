@@ -7,61 +7,60 @@ import { getSocket } from "@/lib/socket"
 
 export function MessageRateChart() {
   const socket = getSocket()
-  const [stats, setStats] = useState({ totalMessages: 0 })
+  const [data, setData] = useState<any[]>([])
+  const [totalMessages, setTotalMessages] = useState(0)
 
   useEffect(() => {
-    socket.emit("get-stats")
+    socket.emit("get-daily-message-stats")
 
-    socket.on("system-stats", (data: any) => {
-      setStats({ totalMessages: data.totalMessages || 0 })
+    socket.on("daily-message-stats", (stats: any) => {
+      setData(stats.daily || [])
+      setTotalMessages(stats.total || 0)
     })
 
     const interval = setInterval(() => {
-      socket.emit("get-stats")
-    }, 10000)
+      socket.emit("get-daily-message-stats")
+    }, 30000) // Refresh every 30 seconds
 
     return () => {
-      socket.off("system-stats")
+      socket.off("daily-message-stats")
       clearInterval(interval)
     }
   }, [socket])
-
-  const data = [
-    { period: "Total", messages: stats.totalMessages },
-  ]
 
   return (
     <Card className="p-6">
       <div className="mb-6">
         <h3 className="font-semibold text-lg">Message Statistics</h3>
-        <p className="text-sm text-muted-foreground">Total messages: {stats.totalMessages}</p>
+        <p className="text-sm text-muted-foreground">Total messages: {totalMessages}</p>
       </div>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis 
-            dataKey="period" 
-            stroke="hsl(var(--foreground))" 
+            dataKey="date" 
+            stroke="#10b981" 
             fontSize={12}
-            tick={{ fill: "white" }}
-            style={{ fill: "white" }}
+            tick={{ fill: "#10b981" }}
+            style={{ fill: "#10b981" }}
           />
           <YAxis 
-            stroke="hsl(var(--foreground))" 
+            stroke="#10b981" 
             fontSize={12}
-            tick={{ fill: "white" }}
-            style={{ fill: "white" }}
+            tick={{ fill: "#10b981" }}
+            style={{ fill: "#10b981" }}
           />
           <Tooltip
             contentStyle={{
               backgroundColor: "hsl(var(--popover))",
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
-              color: "hsl(var(--foreground))",
             }}
+            labelStyle={{ color: "hsl(var(--foreground))" }}
+            itemStyle={{ color: "#10b981" }}
           />
           <Legend wrapperStyle={{ color: "hsl(var(--foreground))" }} />
-          <Bar dataKey="messages" fill="#6366f1" radius={[8, 8, 0, 0]} name="Total Messages" />
+          <Bar dataKey="messages" fill="#6366f1" radius={[8, 8, 0, 0]} name="Messages" />
         </BarChart>
       </ResponsiveContainer>
     </Card>

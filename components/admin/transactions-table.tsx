@@ -148,8 +148,8 @@ export function TransactionsTable() {
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8" 
-                    title="View on blockchain explorer"
-                    onClick={() => window.open(`https://etherscan.io/tx/${tx.blockchainTxHash}`, '_blank')}
+                    title="View on Sepolia Etherscan"
+                    onClick={() => window.open(`https://sepolia.etherscan.io/tx/${tx.blockchainTxHash}`, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4" />
                   </Button>

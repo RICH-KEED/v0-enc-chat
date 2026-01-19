@@ -11,7 +11,36 @@ class BlockchainService {
 
   async initialize(providerUrl) {
     try {
-      this.provider = new ethers.JsonRpcProvider(providerUrl)
+      // Try multiple RPC endpoints for Sepolia
+      const rpcUrls = [
+        providerUrl,
+        "https://rpc.sepolia.org",
+        "https://ethereum-sepolia.publicnode.com",
+        "https://sepolia.gateway.tenderly.co",
+      ]
+
+      let connected = false
+      for (const url of rpcUrls) {
+        try {
+          console.log(`Trying to connect to: ${url}`)
+          this.provider = new ethers.JsonRpcProvider(url, undefined, { 
+            staticNetwork: true 
+          })
+          
+          // Test connection
+          await this.provider.getBlockNumber()
+          console.log(`✅ Connected to: ${url}`)
+          connected = true
+          break
+        } catch (err) {
+          console.log(`❌ Failed to connect to: ${url}`)
+          continue
+        }
+      }
+
+      if (!connected) {
+        throw new Error("Could not connect to any RPC endpoint")
+      }
 
       const deploymentPath = path.join(__dirname, "deployment.json")
       if (!fs.existsSync(deploymentPath)) {
@@ -23,7 +52,7 @@ class BlockchainService {
 
       this.contract = new ethers.Contract(deployment.contractAddress, contractAbi, this.provider)
 
-      console.log("Blockchain service initialized successfully")
+      console.log("✅ Blockchain service initialized successfully")
       return true
     } catch (error) {
       console.error("Failed to initialize blockchain service:", error.message)
@@ -38,6 +67,13 @@ class BlockchainService {
 
     try {
       this.wallet = new ethers.Wallet(privateKey, this.provider)
+      
+      // Log wallet address and balance
+      const address = this.wallet.address
+      const balance = await this.provider.getBalance(address)
+      console.log(`💰 Using wallet: ${address}`)
+      console.log(`💰 Balance: ${ethers.formatEther(balance)} ETH`)
+      
       const contractWithSigner = this.contract.connect(this.wallet)
 
       // Use simple string instead of bytes to avoid ENS lookup
