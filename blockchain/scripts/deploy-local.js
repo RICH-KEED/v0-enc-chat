@@ -6,15 +6,6 @@ const path = require("path")
 async function main() {
   console.log("Deploying MessageStorage contract to local blockchain...")
 
-  const signers = await hre.ethers.getSigners()
-  if (signers.length === 0) {
-    throw new Error("No signers available. Make sure BLOCKCHAIN_PRIVATE_KEY is set in your .env file.")
-  }
-  
-  const deployer = signers[0]
-  console.log("Deploying contracts with account:", deployer.address)
-  console.log("Account balance:", (await hre.ethers.provider.getBalance(deployer.address)).toString())
-
   const MessageStorage = await hre.ethers.getContractFactory("MessageStorage")
   const messageStorage = await MessageStorage.deploy()
 
@@ -26,21 +17,9 @@ async function main() {
   console.log("")
   console.log("Add these to your .env file:")
   console.log(`CONTRACT_ADDRESS=${contractAddress}`)
-  
-  const networkName = hre.network.name
-  if (networkName === "hardhat") {
-    console.log(`BLOCKCHAIN_RPC=http://localhost:8545`)
-    console.log("⚠️  Note: Hardhat network is ephemeral (resets on each script run).")
-    console.log("   For persistent local blockchain, use Ganache:")
-    console.log("   1. Run: npm run ganache (in a separate terminal)")
-    console.log("   2. Then run: npm run deploy:ganache")
-    console.log(`BLOCKCHAIN_PRIVATE_KEY=<your-hardhat-private-key>`)
-  } else {
-    console.log(`BLOCKCHAIN_RPC=${process.env.BLOCKCHAIN_RPC || "http://localhost:8545"}`)
-    console.log(`BLOCKCHAIN_PRIVATE_KEY=${process.env.BLOCKCHAIN_PRIVATE_KEY || "<your-ganache-private-key>"}`)
-  }
-  
+  console.log(`BLOCKCHAIN_RPC=http://localhost:8545`)
   console.log(`NETWORK_ID=1337`)
+  console.log(`BLOCKCHAIN_PRIVATE_KEY=0x387b907d0175d8237cfe9b58ba6f272f96145aa97e34cbfa400caec6224cc37b`)
   console.log(`GAS_LIMIT=3000000`)
 
   const deploymentInfo = {

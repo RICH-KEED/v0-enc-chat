@@ -23,30 +23,20 @@ export default function LoginPage() {
 
   useEffect(() => {
     socket.on("login-success", (data) => {
-      console.log("[Cipher] Login successful:", data)
+      console.log("[v0] Login successful:", data)
       localStorage.setItem("cipher-token", data.token)
       localStorage.setItem("cipher-user", JSON.stringify(data))
-      setIsLoading(false)
       router.push("/user")
     })
 
-    socket.on("login-error", (error) => {
-      console.error("[Cipher] Login error:", error)
-      const errorMessage = error?.message || "Invalid email or password"
-      setError(errorMessage)
-      setPassword("") // Clear password field on error
-      setIsLoading(false)
-    })
-
     socket.on("error", (error) => {
-      console.error("[Cipher] Socket error:", error)
+      console.error("[v0] Login error:", error)
       setError(error.message || "Login failed")
       setIsLoading(false)
     })
 
     return () => {
       socket.off("login-success")
-      socket.off("login-error")
       socket.off("error")
     }
   }, [socket, router])

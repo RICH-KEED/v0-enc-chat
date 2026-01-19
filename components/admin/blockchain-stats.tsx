@@ -2,73 +2,38 @@
 
 import { Card } from "@/components/ui/card"
 import { Blocks, FileText, Zap, CheckCircle } from "lucide-react"
-import { useState, useEffect } from "react"
-import { getSocket } from "@/lib/socket"
+
+const stats = [
+  {
+    label: "Total Blocks",
+    value: "45,231",
+    subtext: "Latest: #45231",
+    icon: Blocks,
+  },
+  {
+    label: "Verified Messages",
+    value: "128,945",
+    subtext: "In last 24h: 8,942",
+    icon: FileText,
+  },
+  {
+    label: "Avg. Block Time",
+    value: "2.3s",
+    subtext: "Network stable",
+    icon: Zap,
+  },
+  {
+    label: "Success Rate",
+    value: "99.8%",
+    subtext: "High reliability",
+    icon: CheckCircle,
+  },
+]
 
 export function BlockchainStats() {
-  const socket = getSocket()
-  const [stats, setStats] = useState({
-    totalMessages: 0,
-    blockchainMessages: 0,
-    totalUsers: 0,
-  })
-
-  useEffect(() => {
-    socket.emit("get-stats")
-
-    socket.on("system-stats", (data: any) => {
-      setStats({
-        totalMessages: data.totalMessages || 0,
-        blockchainMessages: data.blockchainMessages || 0,
-        totalUsers: data.totalUsers || 0,
-      })
-    })
-
-    // Refresh stats every 10 seconds
-    const interval = setInterval(() => {
-      socket.emit("get-stats")
-    }, 10000)
-
-    return () => {
-      socket.off("system-stats")
-      clearInterval(interval)
-    }
-  }, [socket])
-
-  const successRate = stats.totalMessages > 0 
-    ? ((stats.blockchainMessages / stats.totalMessages) * 100).toFixed(1)
-    : "0.0"
-
-  const statsData = [
-    {
-      label: "Total Messages",
-      value: stats.totalMessages.toLocaleString(),
-      subtext: `${stats.totalUsers} users`,
-      icon: Blocks,
-    },
-    {
-      label: "Verified Messages",
-      value: stats.blockchainMessages.toLocaleString(),
-      subtext: "Stored on blockchain",
-      icon: FileText,
-    },
-    {
-      label: "Network Status",
-      value: stats.blockchainMessages > 0 ? "Active" : "Standby",
-      subtext: stats.blockchainMessages > 0 ? "Blockchain connected" : "Waiting for transactions",
-      icon: Zap,
-    },
-    {
-      label: "Success Rate",
-      value: `${successRate}%`,
-      subtext: `${stats.blockchainMessages} verified`,
-      icon: CheckCircle,
-    },
-  ]
-
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {statsData.map((stat) => (
+      {stats.map((stat) => (
         <Card key={stat.label} className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="p-3 rounded-lg bg-primary/10">

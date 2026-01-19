@@ -4,8 +4,8 @@ pragma solidity ^0.8.20;
 contract MessageStorage {
     struct Message {
         address from;
-        string to;
-        string encryptedData;
+        address to;
+        bytes encryptedData;
         uint256 timestamp;
         bytes32 messageHash;
     }
@@ -17,11 +17,11 @@ contract MessageStorage {
     event MessageStored(
         uint256 indexed messageId,
         address indexed from,
-        string to,
+        address indexed to,
         uint256 timestamp
     );
 
-    function storeMessage(string memory _to, string memory _encryptedData) public returns (uint256) {
+    function storeMessage(address _to, bytes memory _encryptedData) public returns (uint256) {
         uint256 messageId = totalMessages;
         bytes32 messageHash = keccak256(abi.encodePacked(msg.sender, _to, _encryptedData, block.timestamp));
 
@@ -34,6 +34,7 @@ contract MessageStorage {
         });
 
         userMessages[msg.sender].push(messageId);
+        userMessages[_to].push(messageId);
 
         totalMessages++;
 
@@ -44,8 +45,8 @@ contract MessageStorage {
 
     function getMessage(uint256 _messageId) public view returns (
         address from,
-        string memory to,
-        string memory encryptedData,
+        address to,
+        bytes memory encryptedData,
         uint256 timestamp,
         bytes32 messageHash
     ) {

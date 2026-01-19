@@ -1,0 +1,19 @@
+{
+  "buildCommand": "next build",
+  "env": [
+    "MONGODB_URI",
+    "NEXT_PUBLIC_SOCKET_URL",
+    "JWT_SECRET",
+    "BLOCKCHAIN_RPC",
+    "CONTRACT_ADDRESS",
+    "BLOCKCHAIN_PRIVATE_KEY",
+    "NETWORK_ID",
+    "GAS_LIMIT",
+    "CORS_ORIGIN"
+  ],
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  }
+}

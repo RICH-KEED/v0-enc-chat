@@ -4,17 +4,14 @@
   "description": "Blockchain service for Cipher encrypted chat",
   "scripts": {
     "dev": "node scripts/start-dev.js",
-    "ganache": "node -r dotenv/config -e \"require('child_process').spawn('npx', ['ganache', '--port', '8545', '--chain.chainId', '1337', '--wallet.mnemonic', process.env.GANACHE_MNEMONIC || 'test test test test test test test test test test test junk'], {stdio: 'inherit', shell: true})\"",
+    "ganache": "ganache --port 8545 --chain.chainId 1337 --wallet.deterministic",
     "compile": "hardhat compile",
-    "deploy": "hardhat run scripts/deploy-local.js --network hardhat",
     "deploy:local": "hardhat run scripts/deploy-local.js --network ganache",
-    "deploy:ganache": "hardhat run scripts/deploy-local.js --network ganache",
     "console": "hardhat console --network ganache",
     "test": "hardhat test"
   },
   "dependencies": {
-    "ethers": "^6.16.0",
-    "dotenv": "^16.3.1"
+    "ethers": "^6.16.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",

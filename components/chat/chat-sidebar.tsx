@@ -7,19 +7,36 @@ import { cn } from "@/lib/utils"
 import { Search, Settings, ChevronLeft, ChevronRight, LogOut, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
-import { getSocket } from "@/lib/socket"
 
 interface User {
-  userId: string
-  username: string
+  id: string
+  name: string
   status: "online" | "offline" | "idle" | "dnd"
   lastMessage?: string
   lastMessageTime?: string
   unreadCount?: number
-  isOnline?: boolean
-  profilePicture?: string
 }
+
+const mockUsers: User[] = [
+  { id: "user-1", name: "Alice Chen", status: "online", lastMessage: "See you tomorrow!", lastMessageTime: "2m" },
+  {
+    id: "user-2",
+    name: "Bob Smith",
+    status: "online",
+    lastMessage: "Thanks for the update",
+    lastMessageTime: "15m",
+    unreadCount: 2,
+  },
+  { id: "user-3", name: "Carol Davis", status: "offline", lastMessage: "Got it, will check", lastMessageTime: "1h" },
+  { id: "user-4", name: "David Wilson", status: "idle", lastMessage: "Perfect timing", lastMessageTime: "3h" },
+  {
+    id: "user-5",
+    name: "Eve Martinez",
+    status: "dnd",
+    lastMessage: "Let me know when ready",
+    lastMessageTime: "1d",
+  },
+]
 
 interface ChatSidebarProps {
   selectedUserId: string
@@ -35,7 +52,7 @@ const getStatusColor = (status: User["status"]) => {
     case "idle":
       return "bg-amber-500"
     case "dnd":
-      return "bg-red-500"
+      return "bg-error"
     case "offline":
       return "bg-muted"
   }
@@ -43,104 +60,10 @@ const getStatusColor = (status: User["status"]) => {
 
 export function ChatSidebar({ selectedUserId, onSelectUser, isCollapsed, onToggleCollapse }: ChatSidebarProps) {
   const router = useRouter()
-  const socket = getSocket()
-  const [users, setUsers] = useState<User[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-
-  useEffect(() => {
-    // Fetch all users
-    socket.emit("get-all-users")
-
-    socket.on("all-users", (fetchedUsers: any[]) => {
-      const mappedUsers = fetchedUsers.map((user) => ({
-        userId: user.userId,
-        username: user.username,
-        status: user.status || "offline",
-        isOnline: user.isOnline,
-        profilePicture: user.profilePicture || "",
-        unreadCount: 0,
-      }))
-      setUsers(mappedUsers)
-      
-      // Fetch unread counts for each user
-      const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("cipher-user") || "{}") : {}
-      if (currentUser.userId) {
-        fetchedUsers.forEach((user) => {
-          socket.emit("get-unread-from-user", { from: user.userId, to: currentUser.userId })
-        })
-      }
-    })
-
-    socket.on("unread-from-user", (data: any) => {
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.userId === data.from ? { ...user, unreadCount: data.count } : user
-        )
-      )
-    })
-
-    socket.on("user-online", (data: any) => {
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.userId === data.userId ? { ...user, status: data.status, isOnline: true } : user
-        )
-      )
-    })
-
-    socket.on("user-offline", (data: any) => {
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.userId === data.userId ? { ...user, status: "offline", isOnline: false } : user
-        )
-      )
-    })
-
-    socket.on("new-message", (message: any) => {
-      const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("cipher-user") || "{}") : {}
-      if (message.to === currentUser.userId) {
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.userId === message.from ? { ...user, unreadCount: (user.unreadCount || 0) + 1 } : user
-          )
-        )
-      }
-    })
-
-    socket.on("messages-read", (data: any) => {
-      const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("cipher-user") || "{}") : {}
-      if (data.to === currentUser.userId) {
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.userId === data.from ? { ...user, unreadCount: 0 } : user
-          )
-        )
-      }
-    })
-
-    return () => {
-      socket.off("all-users")
-      socket.off("unread-from-user")
-      socket.off("user-online")
-      socket.off("user-offline")
-      socket.off("new-message")
-      socket.off("messages-read")
-    }
-  }, [socket])
 
   const handleLogout = () => {
-    localStorage.removeItem("cipher-token")
-    localStorage.removeItem("cipher-user")
     router.push("/login")
   }
-
-  // Get current user from localStorage
-  const currentUser = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("cipher-user") || "{}") : {}
-
-  // Filter out current user and apply search
-  const filteredUsers = users.filter((user) =>
-    user.userId !== currentUser.userId && // Don't show current user in the list
-    user.username.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   return (
     <div className={cn("border-r border-border bg-card transition-all duration-300", isCollapsed ? "w-16" : "w-80")}>
@@ -158,12 +81,7 @@ export function ChatSidebar({ selectedUserId, onSelectUser, isCollapsed, onToggl
           <div className="p-4 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search conversations" 
-                className="pl-9 bg-background border-border"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <Input placeholder="Search conversations" className="pl-9 bg-background border-border" />
             </div>
             <Button
               variant="outline"
@@ -178,34 +96,24 @@ export function ChatSidebar({ selectedUserId, onSelectUser, isCollapsed, onToggl
 
         {/* Users List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredUsers.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground text-sm">
-              {users.length === 0 ? "No users found" : "No matches found"}
-            </div>
-          ) : (
-            filteredUsers.map((user) => (
-              <button
-                key={user.userId}
-                onClick={() => onSelectUser(user.userId)}
-                className={cn(
-                  "w-full p-4 flex items-center gap-3 transition-smooth hover:bg-accent/50 border-l-2",
-                  selectedUserId === user.userId ? "bg-primary/10 border-primary" : "border-transparent",
-                  isCollapsed && "justify-center",
-                )}
-              >
+          {mockUsers.map((user) => (
+            <button
+              key={user.id}
+              onClick={() => onSelectUser(user.id)}
+              className={cn(
+                "w-full p-4 flex items-center gap-3 transition-smooth hover:bg-accent/50 border-l-2",
+                selectedUserId === user.id ? "bg-primary/10 border-primary" : "border-transparent",
+                isCollapsed && "justify-center",
+              )}
+            >
               <div className="relative">
                 <Avatar className="h-10 w-10">
-                  {user.profilePicture ? (
-                    <img 
-                      src={user.profilePicture} 
-                      alt={user.username} 
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {user.username.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  )}
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {user.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </AvatarFallback>
                 </Avatar>
                 <div
                   className={cn(
@@ -214,25 +122,24 @@ export function ChatSidebar({ selectedUserId, onSelectUser, isCollapsed, onToggl
                   )}
                 />
               </div>
-                {!isCollapsed && (
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-sm truncate">{user.username}</span>
-                      {user.isOnline && (
-                        <span className="text-xs text-success">Online</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">{user.status}</p>
+              {!isCollapsed && (
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-sm truncate">{user.name}</span>
+                    {user.lastMessageTime && (
+                      <span className="text-xs text-muted-foreground">{user.lastMessageTime}</span>
+                    )}
                   </div>
-                )}
-                {!isCollapsed && user.unreadCount > 0 && (
-                  <div className="h-5 min-w-5 px-1.5 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary-foreground">{user.unreadCount}</span>
-                  </div>
-                )}
-              </button>
-            ))
-          )}
+                  {user.lastMessage && <p className="text-sm text-muted-foreground truncate">{user.lastMessage}</p>}
+                </div>
+              )}
+              {!isCollapsed && user.unreadCount && user.unreadCount > 0 && (
+                <div className="h-5 min-w-5 px-1.5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="text-xs font-medium text-primary-foreground">{user.unreadCount}</span>
+                </div>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Settings & Logout */}

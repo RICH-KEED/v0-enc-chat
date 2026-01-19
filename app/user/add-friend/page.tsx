@@ -25,12 +25,12 @@ export default function AddFriendPage() {
 
   useEffect(() => {
     socket.on("all-users", (users) => {
-      console.log("[Cipher] Received all users:", users)
+      console.log("[v0] Received all users:", users)
       setResults(users)
     })
 
     socket.on("friend-request-sent", (response) => {
-      console.log("[Cipher] Friend request sent:", response)
+      console.log("[v0] Friend request sent:", response)
     })
 
     return () => {
@@ -41,14 +41,14 @@ export default function AddFriendPage() {
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      console.log("[Cipher] Searching for:", searchQuery)
+      console.log("[v0] Searching for:", searchQuery)
       socket.emit("get-all-users")
     }
   }
 
   const handleAddFriend = (userId: string) => {
     const currentUser = JSON.parse(localStorage.getItem("cipher-user") || "{}")
-    console.log("[Cipher] Sending friend request to:", userId)
+    console.log("[v0] Sending friend request to:", userId)
 
     socket.emit("send-friend-request", {
       from: currentUser.userId,

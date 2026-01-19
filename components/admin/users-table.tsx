@@ -1,44 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getSocket } from "@/lib/socket"
 
 interface User {
-  userId: string
-  username: string
+  id: string
+  name: string
   email: string
-  status: "online" | "offline" | "idle" | "dnd"
-  createdAt: string
-  isOnline: boolean
-  messageCount?: number
+  status: "online" | "offline"
+  joinDate: string
+  messages: number
 }
 
+const mockUsers: User[] = [
+  { id: "1", name: "Alice Chen", email: "alice@***", status: "online", joinDate: "2024-01-15", messages: 1234 },
+  { id: "2", name: "Bob Smith", email: "bob@***", status: "online", joinDate: "2024-02-20", messages: 856 },
+  { id: "3", name: "Carol Davis", email: "carol@***", status: "offline", joinDate: "2024-03-10", messages: 432 },
+  { id: "4", name: "David Wilson", email: "david@***", status: "online", joinDate: "2023-12-05", messages: 2145 },
+  { id: "5", name: "Eve Martinez", email: "eve@***", status: "offline", joinDate: "2024-01-28", messages: 678 },
+]
+
 export function UsersTable() {
-  const socket = getSocket()
   const [searchTerm, setSearchTerm] = useState("")
-  const [users, setUsers] = useState<User[]>([])
 
-  useEffect(() => {
-    socket.emit("get-all-users-with-stats")
-
-    socket.on("all-users-with-stats", (fetchedUsers: any[]) => {
-      setUsers(fetchedUsers)
-    })
-
-    return () => {
-      socket.off("all-users-with-stats")
-    }
-  }, [socket])
-
-  const filteredUsers = users.filter(
+  const filteredUsers = mockUsers.filter(
     (user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
@@ -72,51 +64,44 @@ export function UsersTable() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-muted-foreground">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((user) => (
-                <tr key={user.userId} className="border-b border-border hover:bg-accent/50 transition-smooth">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-medium text-primary">
-                          {user.username.substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="font-medium">{user.username}</span>
+            {filteredUsers.map((user) => (
+              <tr key={user.id} className="border-b border-border hover:bg-accent/50 transition-smooth">
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-medium text-primary">
+                        {user.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </span>
                     </div>
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
-                  <td className="py-3 px-4">
-                    <Badge
-                      variant="secondary"
+                    <span className="font-medium">{user.name}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
+                <td className="py-3 px-4">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      user.status === "online"
+                        ? "bg-success/10 text-success border-success/20"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <div
                       className={cn(
-                        user.isOnline
-                          ? "bg-success/10 text-success border-success/20"
-                          : "bg-muted text-muted-foreground",
+                        "h-1.5 w-1.5 rounded-full mr-1.5",
+                        user.status === "online" ? "bg-success" : "bg-muted-foreground",
                       )}
-                    >
-                      <div
-                        className={cn(
-                          "h-1.5 w-1.5 rounded-full mr-1.5",
-                          user.isOnline ? "bg-success" : "bg-muted-foreground",
-                        )}
-                      />
-                      {user.isOnline ? "online" : "offline"}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-muted-foreground">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono">{user.messageCount || 0}</td>
-                </tr>
-              ))
-            )}
+                    />
+                    {user.status}
+                  </Badge>
+                </td>
+                <td className="py-3 px-4 text-muted-foreground">{user.joinDate}</td>
+                <td className="py-3 px-4 text-right font-mono">{user.messages.toLocaleString()}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

@@ -40,8 +40,7 @@ class BlockchainService {
       this.wallet = new ethers.Wallet(privateKey, this.provider)
       const contractWithSigner = this.contract.connect(this.wallet)
 
-      // Use simple string instead of bytes to avoid ENS lookup
-      const tx = await contractWithSigner.storeMessage(to, encryptedData)
+      const tx = await contractWithSigner.storeMessage(to, ethers.toUtf8Bytes(encryptedData))
 
       await tx.wait()
       return tx
@@ -61,7 +60,7 @@ class BlockchainService {
       return {
         from: message.from,
         to: message.to,
-        encryptedData: message.encryptedData,
+        encryptedData: ethers.toUtf8String(message.encryptedData),
         timestamp: Number(message.timestamp),
         messageHash: message.messageHash,
       }

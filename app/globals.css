@@ -151,11 +151,6 @@
   body {
     @apply bg-background text-foreground;
   }
-  
-  /* Force all SVG text elements to use foreground color for dark theme */
-  tspan {
-    fill: hsl(var(--foreground)) !important;
-  }
 }
 
 /* Added smooth transitions for micro-interactions */

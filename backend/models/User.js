@@ -4,6 +4,7 @@ const userSchema = new mongoose.Schema(
   {
     walletAddress: {
       type: String,
+      unique: true,
       sparse: true,
       lowercase: true,
     },
